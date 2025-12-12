@@ -1,0 +1,48 @@
+name: Build Flutter APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Скачиваем код
+      - uses: actions/checkout@v4
+
+      # 2. Устанавливаем Java (нужна для Android сборки)
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 3. Устанавливаем Flutter
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.19.0' # Фиксируем версию для стабильности (можно поменять на latest, но stable надежнее)
+          cache: true
+
+      # 4. ВАЖНО: Генерируем android папку, так как её нет в репозитории (для экономии места)
+      - name: Generate Platform Folders
+        run: flutter create . --project-name=ci_test_app --org com.example
+
+      # 5. Качаем зависимости
+      - name: Get Dependencies
+        run: flutter pub get
+
+      # 6. Собираем APK
+      # --no-tree-shake-icons предотвращает ошибки шрифтов в минимальных средах
+      - name: Build APK
+        run: flutter build apk --release --no-tree-shake-icons
+
+      # 7. Загружаем результат (Artifact)
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
